@@ -7,6 +7,7 @@ from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
 import io
 import json
+import os
 
 app = Flask(__name__)
 
@@ -169,4 +170,4 @@ def generate_pdf():
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
