@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InvoiceFlow — Professional Invoice Generator</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f4f0;color:#111;min-height:100vh}
+  header{background:#fff;border-bottom:1px solid #e8e8e4;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .logo{font-size:17px;font-weight:600;letter-spacing:-0.02em}
+  .logo span{color:#1a6b3c}
+  .tagline{font-size:12px;color:#999}
+  .main{display:grid;grid-template-columns:480px 1fr;min-height:calc(100vh - 56px)}
+  .form-panel{background:#fff;border-right:1px solid #e8e8e4;padding:1.5rem;overflow-y:auto;max-height:calc(100vh - 56px)}
+  .preview-panel{padding:1.5rem;overflow-y:auto;max-height:calc(100vh - 56px);background:#f5f4f0}
+  .section-title{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#aaa;margin-bottom:10px;margin-top:1.5rem}
+  .section-title:first-child{margin-top:0}
+  .field-group{display:flex;flex-direction:column;gap:7px;margin-bottom:4px}
+  .row{display:grid;gap:8px}
+  .row-2{grid-template-columns:1fr 1fr}
+  .row-3{grid-template-columns:1fr 1fr 1fr}
+  .field{display:flex;flex-direction:column;gap:3px}
+  label{font-size:11px;color:#888}
+  input,textarea,select{width:100%;padding:8px 10px;font-size:13px;font-family:inherit;border:1px solid #e0e0dc;border-radius:7px;background:#fafaf8;color:#111;outline:none;transition:border-color 0.15s}
+  input:focus,textarea:focus,select:focus{border-color:#1a6b3c;background:#fff}
+  textarea{resize:none;line-height:1.5}
+  .items-head{display:grid;grid-template-columns:2.5fr 0.7fr 1fr 0.5fr;gap:6px;margin-bottom:5px}
+  .items-head span{font-size:10px;color:#aaa;font-weight:600;text-transform:uppercase;letter-spacing:0.06em}
+  .item-row{display:grid;grid-template-columns:2.5fr 0.7fr 1fr 0.5fr;gap:6px;margin-bottom:5px;align-items:center}
+  .del{background:none;border:none;color:#ccc;cursor:pointer;font-size:18px;padding:0 4px;border-radius:4px;line-height:1;transition:color 0.1s}
+  .del:hover{color:#e24b4a}
+  .add-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#888;border:1.5px dashed #ddd;border-radius:7px;padding:7px 12px;background:none;cursor:pointer;width:100%;margin-top:2px;transition:all 0.15s}
+  .add-item:hover{border-color:#1a6b3c;color:#1a6b3c}
+  .totals-box{background:#f9f9f7;border:1px solid #e8e8e4;border-radius:8px;padding:12px 14px;margin-top:10px}
+  .total-row{display:flex;justify-content:space-between;font-size:13px;color:#666;padding:3px 0}
+  .total-grand{font-size:15px;font-weight:600;color:#111;border-top:1px solid #e0e0dc;margin-top:6px;padding-top:8px}
+  .actions{display:flex;gap:8px;margin-top:1.25rem}
+  .btn-pdf{flex:1;padding:11px;background:#111;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:background 0.15s}
+  .btn-pdf:hover{background:#1a6b3c}
+  .btn-pdf:active{transform:scale(0.98)}
+  .btn-pdf:disabled{background:#ccc;cursor:not-allowed}
+
+  /* Preview */
+  .preview-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06);padding:2rem;max-width:680px;margin:0 auto;font-size:12px}
+  .prev-header{display:flex;justify-content:space-between;margin-bottom:1.25rem}
+  .prev-title{font-size:26px;font-weight:700;letter-spacing:-0.03em}
+  .prev-num{font-size:12px;color:#999;margin-top:3px}
+  .badge{display:inline-block;padding:4px 12px;border-radius:20px;background:#e8f5ee;color:#1a6b3c;font-size:11px;font-weight:600}
+  .prev-dates{font-size:11px;color:#aaa;margin-top:6px;text-align:right}
+  .divider{border:none;border-top:1px solid #f0f0ec;margin:1rem 0}
+  .prev-parties{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+  .party-lbl{font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#bbb;margin-bottom:4px}
+  .party-name{font-size:13px;font-weight:600;color:#111}
+  .party-info{font-size:11px;color:#888;line-height:1.6;margin-top:2px}
+  .prev-table{width:100%;border-collapse:collapse;margin:1rem 0}
+  .prev-table th{font-size:9px;text-transform:uppercase;letter-spacing:0.07em;color:#bbb;font-weight:700;text-align:left;padding:6px 0;border-bottom:1px solid #f0f0ec}
+  .prev-table th.r{text-align:right}
+  .prev-table td{padding:7px 0;font-size:12px;border-bottom:1px solid #f9f9f7;color:#333}
+  .prev-table td.r{text-align:right;font-variant-numeric:tabular-nums}
+  .prev-totals{display:flex;justify-content:flex-end;margin-top:4px}
+  .prev-totals-inner{width:190px}
+  .pt-row{display:flex;justify-content:space-between;font-size:12px;color:#888;padding:3px 0}
+  .pt-grand{font-size:15px;font-weight:700;color:#111;border-top:1px solid #eee;margin-top:5px;padding-top:7px}
+  .prev-notes{font-size:11px;color:#aaa;border-top:1px solid #f0f0ec;padding-top:10px;margin-top:10px;line-height:1.6}
+
+  @media(max-width:900px){
+    .main{grid-template-columns:1fr}
+    .preview-panel{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Invoice<span>Flow</span></div>
+  <div class="tagline">Professional invoices in seconds</div>
+</header>
+
+<div class="main">
+  <!-- FORM -->
+  <div class="form-panel">
+    <div class="section-title">Your Business</div>
+    <div class="field-group">
+      <input id="biz-name" placeholder="Business name" value="My Business LLC" oninput="update()">
+      <textarea id="biz-addr" placeholder="Address" rows="2" oninput="update()">123 Main St, Baton Rouge, LA 70801</textarea>
+      <div class="row row-2">
+        <input id="biz-email" placeholder="Email" value="hello@mybiz.com" oninput="update()">
+        <input id="biz-phone" placeholder="Phone" value="(225) 555-0101" oninput="update()">
+      </div>
+    </div>
+
+    <div class="section-title">Bill To</div>
+    <div class="field-group">
+      <input id="cl-name" placeholder="Client name" value="Acme Corporation" oninput="update()">
+      <textarea id="cl-addr" placeholder="Client address" rows="2" oninput="update()">456 Oak Ave, New Orleans, LA 70112</textarea>
+      <input id="cl-email" placeholder="Client email" value="billing@acme.com" oninput="update()">
+    </div>
+
+    <div class="section-title">Invoice Details</div>
+    <div class="row row-2" style="margin-bottom:7px">
+      <div class="field"><label>Invoice #</label><input id="inv-num" value="INV-001" oninput="update()"></div>
+      <div class="field"><label>Issue date</label><input id="inv-date" type="date" oninput="update()"></div>
+    </div>
+    <div class="row row-2">
+      <div class="field"><label>Due date</label><input id="due-date" type="date" oninput="update()"></div>
+      <div class="field"><label>Tax %</label><input id="tax" type="number" value="0" min="0" max="100" step="0.5" oninput="update()"></div>
+    </div>
+
+    <div class="section-title">Line Items</div>
+    <div class="items-head"><span>Description</span><span style="text-align:right">Qty</span><span style="text-align:right">Price</span><span></span></div>
+    <div id="items-list"></div>
+    <button class="add-item" onclick="addItem()">+ Add line item</button>
+
+    <div class="totals-box">
+      <div class="total-row"><span>Subtotal</span><span id="sub-display">$0.00</span></div>
+      <div class="total-row"><span>Tax (<span id="tax-pct-display">0</span>%)</span><span id="tax-display">$0.00</span></div>
+      <div class="total-row total-grand"><span>Total</span><span id="total-display">$0.00</span></div>
+    </div>
+
+    <div class="section-title">Notes / Payment Terms</div>
+    <textarea id="notes" rows="3" placeholder="Payment terms, bank info, thank you note..." oninput="update()">Thank you for your business! Payment due within 30 days. Please make checks payable to My Business LLC.</textarea>
+
+    <div class="actions">
+      <button class="btn-pdf" id="pdf-btn" onclick="downloadPDF()">⬇ Download PDF Invoice</button>
+    </div>
+  </div>
+
+  <!-- LIVE PREVIEW -->
+  <div class="preview-panel">
+    <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#bbb;margin-bottom:12px">Live Preview</div>
+    <div class="preview-wrap">
+      <div class="prev-header">
+        <div>
+          <div class="prev-title">Invoice</div>
+          <div class="prev-num" id="p-num">INV-001</div>
+        </div>
+        <div style="text-align:right">
+          <div><span class="badge">Unpaid</span></div>
+          <div class="prev-dates" id="p-dates"></div>
+        </div>
+      </div>
+      <hr class="divider">
+      <div class="prev-parties">
+        <div>
+          <div class="party-lbl">From</div>
+          <div class="party-name" id="p-biz-name">My Business LLC</div>
+          <div class="party-info" id="p-biz-info"></div>
+        </div>
+        <div>
+          <div class="party-lbl">Bill To</div>
+          <div class="party-name" id="p-cl-name">Acme Corporation</div>
+          <div class="party-info" id="p-cl-info"></div>
+        </div>
+      </div>
+      <table class="prev-table">
+        <thead>
+          <tr><th>Description</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Amount</th></tr>
+        </thead>
+        <tbody id="p-items"></tbody>
+      </table>
+      <div class="prev-totals">
+        <div class="prev-totals-inner">
+          <div class="pt-row"><span>Subtotal</span><span id="p-sub">$0.00</span></div>
+          <div class="pt-row"><span>Tax (<span id="p-tax-pct">0</span>%)</span><span id="p-tax">$0.00</span></div>
+          <div class="pt-row pt-grand"><span>Total Due</span><span id="p-total">$0.00</span></div>
+        </div>
+      </div>
+      <div class="prev-notes" id="p-notes"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let items = [
+  {desc:'Web design services', qty:1, price:500},
+  {desc:'Logo design', qty:1, price:150}
+];
+
+const fmt = n => '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+
+function renderItems(){
+  const list = document.getElementById('items-list');
+  list.innerHTML = '';
+  items.forEach((it,i) => {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <input value="${it.desc}" placeholder="Description" oninput="items[${i}].desc=this.value;update()">
+      <input type="number" value="${it.qty}" min="0" style="text-align:right" oninput="items[${i}].qty=parseFloat(this.value)||0;update()">
+      <input type="number" value="${it.price}" min="0" step="0.01" style="text-align:right" placeholder="0.00" oninput="items[${i}].price=parseFloat(this.value)||0;update()">
+      <button class="del" onclick="items.splice(${i},1);renderItems()">×</button>`;
+    list.appendChild(row);
+  });
+  update();
+}
+
+function addItem(){ items.push({desc:'',qty:1,price:0}); renderItems(); }
+
+function update(){
+  const tax = parseFloat(document.getElementById('tax').value)||0;
+  const sub = items.reduce((a,it)=>a+(it.qty*it.price),0);
+  const taxAmt = sub*tax/100;
+  const total = sub+taxAmt;
+
+  document.getElementById('sub-display').textContent = fmt(sub);
+  document.getElementById('tax-pct-display').textContent = tax;
+  document.getElementById('tax-display').textContent = fmt(taxAmt);
+  document.getElementById('total-display').textContent = fmt(total);
+
+  // Preview
+  const invNum = document.getElementById('inv-num').value;
+  const invDate = document.getElementById('inv-date').value;
+  const dueDate = document.getElementById('due-date').value;
+
+  document.getElementById('p-num').textContent = invNum;
+  document.getElementById('p-dates').innerHTML =
+    (invDate ? 'Issued: '+invDate : '') +
+    (invDate && dueDate ? '<br>' : '') +
+    (dueDate ? 'Due: '+dueDate : '');
+
+  document.getElementById('p-biz-name').textContent = document.getElementById('biz-name').value || 'Your Business';
+  document.getElementById('p-biz-info').innerHTML =
+    (document.getElementById('biz-addr').value||'').replace(/\n/g,'<br>') +
+    '<br>' + (document.getElementById('biz-email').value||'') +
+    ' &nbsp; ' + (document.getElementById('biz-phone').value||'');
+
+  document.getElementById('p-cl-name').textContent = document.getElementById('cl-name').value || 'Client';
+  document.getElementById('p-cl-info').innerHTML =
+    (document.getElementById('cl-addr').value||'').replace(/\n/g,'<br>') +
+    '<br>' + (document.getElementById('cl-email').value||'');
+
+  const tbody = document.getElementById('p-items');
+  tbody.innerHTML = '';
+  items.forEach(it => {
+    const amt = it.qty*it.price;
+    tbody.innerHTML += `<tr>
+      <td>${it.desc||'—'}</td>
+      <td class="r">${it.qty}</td>
+      <td class="r">${fmt(it.price)}</td>
+      <td class="r">${fmt(amt)}</td>
+    </tr>`;
+  });
+
+  document.getElementById('p-sub').textContent = fmt(sub);
+  document.getElementById('p-tax-pct').textContent = tax;
+  document.getElementById('p-tax').textContent = fmt(taxAmt);
+  document.getElementById('p-total').textContent = fmt(total);
+
+  const notes = document.getElementById('notes').value;
+  const notesEl = document.getElementById('p-notes');
+  notesEl.textContent = notes;
+  notesEl.style.display = notes ? 'block' : 'none';
+}
+
+async function downloadPDF(){
+  const btn = document.getElementById('pdf-btn');
+  btn.disabled = true;
+  btn.textContent = 'Generating PDF...';
+
+  const payload = {
+    business: {
+      name: document.getElementById('biz-name').value,
+      address: document.getElementById('biz-addr').value,
+      email: document.getElementById('biz-email').value,
+      phone: document.getElementById('biz-phone').value,
+    },
+    client: {
+      name: document.getElementById('cl-name').value,
+      address: document.getElementById('cl-addr').value,
+      email: document.getElementById('cl-email').value,
+    },
+    invoice: {
+      number: document.getElementById('inv-num').value,
+      date: document.getElementById('inv-date').value,
+      due_date: document.getElementById('due-date').value,
+    },
+    items: items,
+    tax_rate: parseFloat(document.getElementById('tax').value)||0,
+    notes: document.getElementById('notes').value,
+  };
+
+  try {
+    const res = await fetch('/generate-pdf', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoice-${payload.invoice.number}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert('Error generating PDF. Make sure the Flask server is running.');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '⬇ Download PDF Invoice';
+}
+
+// Set today's date
+const today = new Date();
+const pad = n => String(n).padStart(2,'0');
+const todayStr = today.getFullYear()+'-'+pad(today.getMonth()+1)+'-'+pad(today.getDate());
+const due = new Date(today); due.setDate(due.getDate()+30);
+const dueStr = due.getFullYear()+'-'+pad(due.getMonth()+1)+'-'+pad(due.getDate());
+document.getElementById('inv-date').value = todayStr;
+document.getElementById('due-date').value = dueStr;
+
+renderItems();
+</script>
+</body>
+</html>
