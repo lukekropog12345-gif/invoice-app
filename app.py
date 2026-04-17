@@ -14,8 +14,10 @@ import os
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'devkey123')
-db_url = os.environ.get('DATABASE_URL', '').replace('postgres://', 'postgresql+pg8000://')
-app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+db_url = os.environ.get('DATABASE_URL', '')
+db_url = db_url.replace('postgres://', 'postgresql+pg8000://')
+db_url = db_url.replace('postgresql://', 'postgresql+pg8000://')
+app.config['SQLALCHEMY_DATABASE_URI'] = db_urlapp.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
