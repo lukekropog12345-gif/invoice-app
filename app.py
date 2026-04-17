@@ -1,4 +1,7 @@
-from flask import Flask, render_template, request, send_file, jsonify
+from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for, flash
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
@@ -10,34 +13,94 @@ import json
 import os
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'devkey123')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', '').replace('postgres://', 'postgresql://')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(150), unique=True, nullable=False)
+    password = db.Column(db.String(256), nullable=False)
+    biz_name = db.Column(db.String(150))
+    biz_address = db.Column(db.String(300))
+    biz_email = db.Column(db.String(150))
+    biz_phone = db.Column(db.String(50))
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    if current_user.is_authenticated:
+        return render_template('index.html', user=current_user)
+    return redirect(url_for('login'))
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists!')
+            return redirect(url_for('signup'))
+        user = User(email=email, password=generate_password_hash(password))
+        db.session.add(user)
+        db.session.commit()
+        login_user(user)
+        return redirect(url_for('index'))
+    return render_template('signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        user = User.query.filter_by(email=email).first()
+        if user and check_password_hash(user.password, password):
+            login_user(user)
+            return redirect(url_for('index'))
+        flash('Invalid email or password!')
+        return redirect(url_for('login'))
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+@app.route('/save-profile', methods=['POST'])
+@login_required
+def save_profile():
+    data = request.get_json()
+    current_user.biz_name = data.get('biz_name')
+    current_user.biz_address = data.get('biz_address')
+    current_user.biz_email = data.get('biz_email')
+    current_user.biz_phone = data.get('biz_phone')
+    db.session.commit()
+    return jsonify({'success': True})
 
 @app.route('/generate-pdf', methods=['POST'])
+@login_required
 def generate_pdf():
     data = request.get_json()
-
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=0.75*inch,
-        leftMargin=0.75*inch,
-        topMargin=0.75*inch,
-        bottomMargin=0.75*inch
-    )
+    doc = SimpleDocTemplate(buffer, pagesize=letter,
+        rightMargin=0.75*inch, leftMargin=0.75*inch,
+        topMargin=0.75*inch, bottomMargin=0.75*inch)
 
     styles = getSampleStyleSheet()
     story = []
 
-    # Custom styles
     title_style = ParagraphStyle('InvoiceTitle', fontSize=28, fontName='Helvetica-Bold',
                                   textColor=colors.HexColor('#111111'), spaceAfter=4)
     label_style = ParagraphStyle('Label', fontSize=9, fontName='Helvetica',
-                                  textColor=colors.HexColor('#999999'), spaceAfter=3,
-                                  leading=12)
+                                  textColor=colors.HexColor('#999999'), spaceAfter=3, leading=12)
     name_style = ParagraphStyle('Name', fontSize=13, fontName='Helvetica-Bold',
                                  textColor=colors.HexColor('#111111'), spaceAfter=2)
     detail_style = ParagraphStyle('Detail', fontSize=10, fontName='Helvetica',
@@ -54,17 +117,16 @@ def generate_pdf():
     tax_rate = float(data.get('tax_rate', 0))
     notes = data.get('notes', '')
 
-    # Header row: INVOICE title left, invoice number/status right
     inv_num = invoice.get('number', 'INV-001')
     inv_date = invoice.get('date', '')
     due_date = invoice.get('due_date', '')
 
-    header_data = [
-        [Paragraph('Invoice', title_style),
-         Paragraph(f'<font color="#999999" size="10">{inv_num}</font><br/>'
-                   f'<font color="#999999" size="9">Issued: {inv_date}</font><br/>'
-                   f'<font color="#999999" size="9">Due: {due_date}</font>', right_style)]
-    ]
+    header_data = [[
+        Paragraph('Invoice', title_style),
+        Paragraph(f'<font color="#999999" size="10">{inv_num}</font><br/>'
+                  f'<font color="#999999" size="9">Issued: {inv_date}</font><br/>'
+                  f'<font color="#999999" size="9">Due: {due_date}</font>', right_style)
+    ]]
     header_table = Table(header_data, colWidths=[4*inch, 2.5*inch])
     header_table.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
@@ -73,7 +135,6 @@ def generate_pdf():
     story.append(header_table)
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#eeeeee'), spaceAfter=14, spaceBefore=10))
 
-    # From / Bill To
     biz_detail = f"{biz.get('address','').replace(chr(10),'<br/>')}<br/>{biz.get('email','')}&nbsp;&nbsp;{biz.get('phone','')}"
     cl_detail = f"{client.get('address','').replace(chr(10),'<br/>')}<br/>{client.get('email','')}"
 
@@ -91,13 +152,9 @@ def generate_pdf():
     story.append(parties_table)
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#eeeeee'), spaceAfter=10, spaceBefore=14))
 
-    # Line items table
-    th_style = ParagraphStyle('TH', fontSize=9, fontName='Helvetica-Bold',
-                               textColor=colors.HexColor('#999999'))
-    td_style = ParagraphStyle('TD', fontSize=10, fontName='Helvetica',
-                               textColor=colors.HexColor('#111111'))
-    td_right = ParagraphStyle('TDR', fontSize=10, fontName='Helvetica',
-                               textColor=colors.HexColor('#111111'), alignment=TA_RIGHT)
+    th_style = ParagraphStyle('TH', fontSize=9, fontName='Helvetica-Bold', textColor=colors.HexColor('#999999'))
+    td_style = ParagraphStyle('TD', fontSize=10, fontName='Helvetica', textColor=colors.HexColor('#111111'))
+    td_right = ParagraphStyle('TDR', fontSize=10, fontName='Helvetica', textColor=colors.HexColor('#111111'), alignment=TA_RIGHT)
 
     table_data = [[
         Paragraph('DESCRIPTION', th_style),
@@ -131,18 +188,13 @@ def generate_pdf():
     story.append(items_table)
     story.append(Spacer(1, 10))
 
-    # Totals
     tax_amt = subtotal * tax_rate / 100
     total = subtotal + tax_amt
 
-    totals_right = ParagraphStyle('TotR', fontSize=11, fontName='Helvetica',
-                                   textColor=colors.HexColor('#666666'), alignment=TA_RIGHT)
-    totals_right_bold = ParagraphStyle('TotRB', fontSize=13, fontName='Helvetica-Bold',
-                                        textColor=colors.HexColor('#111111'), alignment=TA_RIGHT)
-    totals_label = ParagraphStyle('TotL', fontSize=11, fontName='Helvetica',
-                                   textColor=colors.HexColor('#666666'), alignment=TA_RIGHT)
-    totals_label_bold = ParagraphStyle('TotLB', fontSize=13, fontName='Helvetica-Bold',
-                                        textColor=colors.HexColor('#111111'), alignment=TA_RIGHT)
+    totals_right = ParagraphStyle('TotR', fontSize=11, fontName='Helvetica', textColor=colors.HexColor('#666666'), alignment=TA_RIGHT)
+    totals_right_bold = ParagraphStyle('TotRB', fontSize=13, fontName='Helvetica-Bold', textColor=colors.HexColor('#111111'), alignment=TA_RIGHT)
+    totals_label = ParagraphStyle('TotL', fontSize=11, fontName='Helvetica', textColor=colors.HexColor('#666666'), alignment=TA_RIGHT)
+    totals_label_bold = ParagraphStyle('TotLB', fontSize=13, fontName='Helvetica-Bold', textColor=colors.HexColor('#111111'), alignment=TA_RIGHT)
 
     totals_data = [
         [Paragraph('Subtotal', totals_label), Paragraph(f'${subtotal:,.2f}', totals_right)],
@@ -168,6 +220,9 @@ def generate_pdf():
 
     filename = f"invoice-{inv_num}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
