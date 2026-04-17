@@ -89,11 +89,11 @@
   <div class="form-panel">
     <div class="section-title">Your Business</div>
     <div class="field-group">
-      <input id="biz-name" placeholder="Business name" value="My Business LLC" oninput="update()">
-      <textarea id="biz-addr" placeholder="Address" rows="2" oninput="update()">123 Main St, Baton Rouge, LA 70801</textarea>
+      <input id="biz-name" placeholder="Business name" value="{{ user.biz_name or '' }}" oninput="update()">
+      <textarea id="biz-addr" placeholder="Address" rows="2" oninput="update()">{{ user.biz_address or '' }}</textarea>
       <div class="row row-2">
-        <input id="biz-email" placeholder="Email" value="hello@mybiz.com" oninput="update()">
-        <input id="biz-phone" placeholder="Phone" value="(225) 555-0101" oninput="update()">
+        <input id="biz-email" placeholder="Email" value="{{ user.biz_email or '' }}" oninput="update()">
+        <input id="biz-phone" placeholder="Phone" value="{{ user.biz_phone or '' }}" oninput="update()">
       </div>
     </div>
 
@@ -259,9 +259,20 @@ function update(){
   notesEl.textContent = notes;
   notesEl.style.display = notes ? 'block' : 'none';
 }
-
+async function saveProfile(){
+  await fetch('/save-profile', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      biz_name: document.getElementById('biz-name').value,
+      biz_address: document.getElementById('biz-addr').value,
+      biz_email: document.getElementById('biz-email').value,
+      biz_phone: document.getElementById('biz-phone').value,
+    })
+  });
+}
 async function downloadPDF(){
-  const btn = document.getElementById('pdf-btn');
+ await saveProfile();
   btn.disabled = true;
   btn.textContent = 'Generating PDF...';
 
